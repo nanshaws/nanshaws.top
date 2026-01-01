@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 厨房助手 - 你的私人智能大厨，在线解答做菜难题</title>
+    <meta name="description" content="AI 厨房助手是一个基于人工智能的在线烹饪顾问。无论你想学做红烧肉，还是想利用冰箱里的剩菜做大餐，它都能为你提供专业的菜谱指导和烹饪建议。">
+    <meta name="keywords" content="AI厨师, 做菜助手, 智能食谱, 红烧肉教程, 菜谱查询, 智能烹饪">
+    <meta property="og:title" content="AI 厨房助手 - 你的专属大厨">
+    <meta property="og:description" content="输入食材，秒出菜谱！快来试试你的私人 AI 大厨。">
+    <meta property="og:url" content="https://nanshaws.top/chef/">
+    <meta name="msvalidate.01" content="20F67D94B0AC08431773585C338005D7" />
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* 解决 Vue 初始化闪烁问题 */
+        [v-cloak] { display: none; }
+        
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #fb923c; border-radius: 10px; }
+        
+        /* 聊天区域高度计算 */
+        .chat-container { height: calc(100vh - 180px); }
+        
+        /* 隐藏横向滚动条但保留滚动功能 (用于快捷标签) */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AI 厨房助手",
+  "operatingSystem": "Web",
+  "applicationCategory": "LifestyleApplication",
+  "description": "基于人工智能的烹饪问答助手，提供实时菜谱指导。",
+  "offers": {
+    "@type": "Offer",
+    "price": "0"
+  }
+}
+</script>
+<body class="bg-orange-50 font-sans text-gray-900">
+
+    <div id="app" v-cloak class="max-w-xl mx-auto h-screen flex flex-col bg-white shadow-xl relative">
+        
+        <header class="bg-white border-b border-orange-100 p-4 flex justify-between items-center sticky top-0 z-20">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-orange-900 leading-tight">AI 厨房助手</h1>
+                    <div class="flex items-center">
+                        <span class="flex h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+                        <span class="text-[10px] text-gray-500 uppercase tracking-tighter">智能大厨在线</span>
+                    </div>
+                </div>
+            </div>
+            <button @click="clearChat" class="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 space-y-6 chat-container" ref="chatRef">
+            <div v-for="(msg, index) in messages" :key="index" :class="['flex w-full', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row']">
+                
+                <div :class="['flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center', msg.role === 'user' ? 'ml-3 bg-orange-200 text-orange-700' : 'mr-3 bg-stone-100 text-stone-500']">
+                    <svg v-if="msg.role === 'user'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+                    </svg>
+                </div>
+
+                <div :class="[
+                    'max-w-[75%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm',
+                    msg.role === 'user' 
+                    ? 'bg-orange-500 text-white rounded-tr-none' 
+                    : 'bg-stone-100 text-gray-800 rounded-tl-none'
+                ]">
+                    {{ msg.content }}
+                </div>
+            </div>
+
+            <div v-if="isLoading" class="flex flex-row items-center">
+                <div class="mr-3 w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-400">
+                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <div class="bg-stone-50 border border-stone-100 px-4 py-2 rounded-2xl text-xs text-stone-400 italic">
+                    大厨正在构思食谱...
+                </div>
+            </div>
+        </main>
+
+        <footer class="bg-white border-t border-orange-50 p-4">
+            <div class="flex space-x-2 overflow-x-auto no-scrollbar mb-4">
+                <button v-for="tag in quickTags" :key="tag" @click="useTag(tag)"
+                    class="flex-shrink-0 px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-xs font-medium hover:bg-orange-100 transition-colors border border-orange-100">
+                    # {{ tag }}
+                </button>
+            </div>
+
+            <div class="flex items-center bg-gray-100 rounded-2xl px-4 py-1.5 focus-within:ring-2 focus-within:ring-orange-400 focus-within:bg-white transition-all shadow-inner">
+                <input 
+                    type="text" 
+                    v-model="inputMsg" 
+                    @keyup.enter="handleSend"
+                    placeholder="输入食材或菜名..." 
+                    class="flex-1 bg-transparent border-none focus:outline-none text-sm h-10"
+                    :disabled="isLoading"
+                >
+                <button 
+                    @click="handleSend"
+                    :disabled="!inputMsg.trim() || isLoading"
+                    class="ml-2 p-2 bg-orange-500 text-white rounded-xl disabled:bg-gray-300 shadow-md shadow-orange-100 active:scale-95 transition-all"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                    </svg>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const { createApp, ref, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const messages = ref([
+                    { role: 'ai', content: '你好！我是你的智能厨艺助手。今天想做什么美味？或者告诉我冰箱里的剩菜，我帮你出主意！' }
+                ]);
+                const inputMsg = ref('');
+                const isLoading = ref(false);
+                const chatRef = ref(null);
+                const quickTags = ['红烧肉教程', '5分钟快手晚餐', '西红柿能做啥', '减脂餐做法'];
+
+                // 滚动到底部逻辑
+                const scrollDown = async () => {
+                    await nextTick();
+                    if (chatRef.value) {
+                        chatRef.value.scrollTo({
+                            top: chatRef.value.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }
+                };
+
+                // 发送消息逻辑
+                const handleSend = async () => {
+                    const text = inputMsg.value.trim();
+                    if (!text || isLoading.value) return;
+
+                    messages.value.push({ role: 'user', content: text });
+                    inputMsg.value = '';
+                    isLoading.value = true;
+                    scrollDown();
+
+                    try {
+                        // 请求同目录下的 api.php
+                        const response = await fetch('./api.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: text })
+                        });
+
+                        const data = await response.json();
+                        
+                        // 解析返回内容 (适配 OpenAI/DeepSeek 格式)
+                        if (data.choices && data.choices[0].message) {
+                            messages.value.push({
+                                role: 'ai',
+                                content: data.choices[0].message.content
+                            });
+                        } else {
+                            throw new Error('API 返回异常');
+                        }
+                    } catch (error) {
+                        messages.value.push({
+                            role: 'ai',
+                            content: '抱歉，大厨去菜市场了，请稍后再试（请检查 api.php 配置）。'
+                        });
+                    } finally {
+                        isLoading.value = false;
+                        scrollDown();
+                    }
+                };
+
+                const useTag = (tag) => {
+                    inputMsg.value = tag;
+                    handleSend();
+                };
+
+                const clearChat = () => {
+                    if (confirm('确定要清空聊天记录吗？')) {
+                        messages.value = [messages.value[0]];
+                    }
+                };
+
+                return {
+                    messages, inputMsg, isLoading, chatRef, quickTags,
+                    handleSend, useTag, clearChat
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
