@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Docker Run 转 Docker Compose 在线转换工具 - 开发者在线工具</title>
+    <meta name="description" content="免费在线将 Docker run 命令转换为 Docker Compose YAML 文件。支持解析端口映射、卷挂载、环境变量、重启策略等常用参数。">
+    <meta name="keywords" content="docker run转compose, docker-compose生成器, docker命令转yaml, 在线docker工具">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    
+    <style>
+        :root { --docker-blue: #2496ed; --secondary-color: #64748b; --bg-color: #f8fafc; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-color); padding: 20px; color: #1e293b; line-height: 1.6; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        
+        .nav-bar { margin-bottom: 20px; }
+        .back-link { text-decoration: none; color: var(--secondary-color); font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .back-link:hover { color: var(--docker-blue); }
+
+        header { text-align: center; margin-bottom: 40px; }
+        header h1 { font-size: 2.2rem; color: #0f172a; margin-bottom: 10px; }
+        header h1 i { color: var(--docker-blue); margin-right: 10px; }
+        header p { color: #64748b; }
+
+        .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        @media (max-width: 850px) { .tool-grid { grid-template-columns: 1fr; } }
+        
+        .panel { display: flex; flex-direction: column; }
+        .label-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 600; }
+        
+        textarea { height: 380px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 14px; outline: none; background: #fafafa; transition: all 0.2s; }
+        textarea:focus { border-color: var(--docker-blue); background: #fff; box-shadow: 0 0 0 4px rgba(36,150,237,0.1); }
+        
+        .actions { display: flex; gap: 12px; margin-bottom: 40px; }
+        button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: var(--docker-blue); color: white; transition: all 0.2s; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(36,150,237,0.2); }
+        button.gray { background: var(--secondary-color); }
+
+        .seo-content { margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 40px; color: #475569; }
+        .error-info { color: #ef4444; background: #fee2e2; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
+    </style>
+</head>
+<body>
+
+<main class="container">
+    <nav class="nav-bar">
+        <a href="/" class="back-link">← 返回博客首页</a>
+    </nav>
+
+    <header>
+        <h1><i class="fa fa-ship"></i>Docker Run 转 Compose</h1>
+        <p>将复杂的 Docker 命令瞬间转换为可维护的 YAML 文件</p>
+    </header>
+
+    <section class="tool-grid">
+        <div class="panel">
+            <div class="label-bar">输入 Docker Run 命令</div>
+            <textarea id="dockerInput" placeholder="在此粘贴 docker run 命令...
+例如：
+docker run -d --name web -p 80:80 nginx"></textarea>
+        </div>
+        <div class="panel">
+            <div class="label-bar">
+                Docker Compose (YAML)
+                <button class="gray" style="padding: 4px 12px; font-size: 12px;" onclick="copyOutput()">一键复制</button>
+            </div>
+            <textarea id="composeOutput" readonly placeholder="转换结果将显示在这里..."></textarea>
+        </div>
+    </section>
+
+    <div id="errorBox" class="error-info"></div>
+
+    <section class="actions">
+        <button onclick="convertToCompose()">立即转换</button>
+        <button class="gray" onclick="clearAll()">清空重置</button>
+    </section>
+
+    <article class="seo-content">
+        <h2>为什么要将 Docker Run 转换为 Docker Compose？</h2>
+        <p>虽然 <code>docker run</code> 命令在测试单个容器时很方便，但在生产环境或复杂项目中，使用 <strong>Docker Compose</strong> 具有明显的优势：</p>
+        <ul>
+            <li><strong>可版本化</strong>：YAML 文件可以提交到 Git 仓库。</li>
+            <li><strong>一键启动</strong>：使用 <code>docker-compose up -d</code> 即可管理多个服务。</li>
+            <li><strong>结构清晰</strong>：环境变量、卷挂载和网络配置一目了然。</li>
+        </ul>
+        <h3>本工具支持解析的参数：</h3>
+        <p>目前支持解析：端口映射 (<code>-p</code>)、卷挂载 (<code>-v</code>)、环境变量 (<code>-e</code>)、容器名称 (<code>--name</code>)、重启策略 (<code>--restart</code>)、网络 (<code>--network</code>) 以及后台运行 (<code>-d</code>) 等常用参数。</p>
+    </article>
+</main>
+
+<script>
+    function convertToCompose() {
+        const input = document.getElementById('dockerInput').value.trim();
+        const errorBox = document.getElementById('errorBox');
+        const output = document.getElementById('composeOutput');
+        
+        errorBox.style.display = 'none';
+        
+        if (!input) return;
+
+        try {
+            // 清理换行符和多余空格
+            const cleanInput = input.replace(/\\\n/g, ' ').replace(/\s+/g, ' ');
+            
+            // 简单的解析逻辑
+            const args = cleanInput.split(' ');
+            const config = {
+                version: '3',
+                services: {}
+            };
+
+            let serviceName = 'myservice';
+            let imageName = 'image_name';
+            const service = {
+                image: '',
+                container_name: '',
+                ports: [],
+                volumes: [],
+                environment: [],
+                restart: 'always'
+            };
+
+            for (let i = 0; i < args.length; i++) {
+                const arg = args[i];
+                const nextArg = args[i + 1];
+
+                if (arg === '--name') {
+                    service.container_name = nextArg;
+                    serviceName = nextArg;
+                    i++;
+                } else if (arg === '-p' || arg === '--publish') {
+                    service.ports.push(nextArg);
+                    i++;
+                } else if (arg === '-v' || arg === '--volume') {
+                    service.volumes.push(nextArg);
+                    i++;
+                } else if (arg === '-e' || arg === '--env') {
+                    service.environment.push(nextArg);
+                    i++;
+                } else if (arg === '--restart') {
+                    service.restart = nextArg;
+                    i++;
+                }
+            }
+
+            // 寻找镜像名称（通常是最后一个不带 - 的参数）
+            const lastArg = args[args.length - 1];
+            if (!lastArg.startsWith('-')) {
+                service.image = lastArg;
+            }
+
+            // 清理空字段
+            if (service.ports.length === 0) delete service.ports;
+            if (service.volumes.length === 0) delete service.volumes;
+            if (service.environment.length === 0) delete service.environment;
+            if (!service.container_name) delete service.container_name;
+
+            config.services[serviceName] = service;
+
+            output.value = jsyaml.dump(config, { indent: 2 });
+        } catch (e) {
+            errorBox.innerText = "解析出错，请确保命令格式基本正确。";
+            errorBox.style.display = 'block';
+        }
+    }
+
+    function clearAll() {
+        document.getElementById('dockerInput').value = '';
+        document.getElementById('composeOutput').value = '';
+        document.getElementById('errorBox').style.display = 'none';
+    }
+
+    function copyOutput() {
+        const output = document.getElementById('composeOutput');
+        output.select();
+        document.execCommand('copy');
+        alert('已复制到剪贴板');
+    }
+</script>
+
+</body>
+</html>

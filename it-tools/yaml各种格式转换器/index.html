@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>YAML转Properties在线转换器 | JSON与YAML互转工具 - 开发者在线工具</title>
+    <meta name="description" content="一个免费、高效的在线YAML转换工具。支持YAML转Properties、Properties转YAML、JSON转YAML及JSON转Properties。全客户端解析，保护隐私安全。">
+    <meta name="keywords" content="YAML转Properties, Properties转YAML, YAML转JSON, JSON转YAML, 在线转换工具, SpringBoot配置转换">
+    <link rel="canonical" href="https://nanshaws.top/it-tools/yaml/" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "YAML/Properties/JSON 全能转换器",
+      "operatingSystem": "All",
+      "applicationCategory": "DeveloperApplication",
+      "description": "在线互相转换 YAML, Properties 和 JSON 格式，适用于 SpringBoot 配置文件转换。",
+      "offers": {
+        "@type": "Offer",
+        "price": "0"
+      }
+    }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    
+    <style>
+        :root { --primary-color: #2563eb; --secondary-color: #64748b; --bg-color: #f8fafc; --text-main: #1e293b; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-color); padding: 20px; color: var(--text-main); line-height: 1.6; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        
+        /* 导航 */
+        .nav-bar { margin-bottom: 20px; }
+        .back-link { text-decoration: none; color: var(--secondary-color); font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .back-link:hover { color: var(--primary-color); }
+
+        /* 头部 */
+        header { text-align: center; margin-bottom: 40px; }
+        header h1 { font-size: 2.2rem; margin-bottom: 10px; color: #0f172a; }
+        header p { color: #64748b; font-size: 1.1rem; }
+
+        /* 工具主区域 */
+        .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        @media (max-width: 850px) { .tool-grid { grid-template-columns: 1fr; } }
+        
+        .panel { display: flex; flex-direction: column; }
+        .label-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 600; }
+        
+        textarea { height: 380px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 14px; outline: none; transition: all 0.2s; background: #fafafa; }
+        textarea:focus { border-color: var(--primary-color); background: #fff; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+        
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+        button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; background: var(--primary-color); color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.2); }
+        button.gray { background: var(--secondary-color); }
+
+        /* SEO 文章区域 */
+        .seo-content { margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 40px; color: #475569; }
+        .seo-content h2 { color: #1e293b; margin-top: 30px; }
+        .seo-content p { margin-bottom: 16px; }
+        .error-info { color: #ef4444; background: #fee2e2; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
+    </style>
+</head>
+<body>
+
+<main class="container">
+    <nav class="nav-bar">
+        <a href="/" class="back-link">← 返回博客首页</a>
+    </nav>
+
+    <header>
+        <h1>YAML / Properties / JSON 在线转换器</h1>
+        <p>专业、安全、快速的开发者配置格式互转工具</p>
+    </header>
+
+    <section class="tool-grid">
+        <div class="panel">
+            <div class="label-bar">输入源码</div>
+            <textarea id="inputText" placeholder="支持粘贴 YAML, Properties 或 JSON 内容..."></textarea>
+        </div>
+        <div class="panel">
+            <div class="label-bar">
+                转换结果
+                <button class="gray" style="padding: 4px 12px; font-size: 12px;" onclick="copyOutput()">一键复制</button>
+            </div>
+            <textarea id="outputText" readonly placeholder="转换后的内容将实时显示在这里..."></textarea>
+        </div>
+    </section>
+
+    <div id="errorBox" class="error-info"></div>
+
+    <section class="actions">
+        <button onclick="handleConvert('toYaml')">转换为 YAML</button>
+        <button onclick="handleConvert('toProp')">转换为 Properties</button>
+        <button onclick="handleConvert('toJson')">转换为 JSON</button>
+        <button class="gray" onclick="clearAll()">清空重置</button>
+    </section>
+
+    <article class="seo-content">
+        <h2>为什么使用本在线 YAML 转换工具？</h2>
+        <p>在 Spring Boot 开发或 Kubernetes 编排中，我们经常需要在 <strong>YAML</strong> 和 <strong>Properties</strong> 格式之间进行切换。本工具专为开发者设计，提供高效的格式转换服务。</p>
+
+        <h3>主要功能亮点：</h3>
+        <ul>
+            <li><strong>双向转换</strong>：不仅支持 YAML 转 Properties，还支持 Properties 反转 YAML。</li>
+            <li><strong>隐私保护</strong>：所有转换逻辑均在您的浏览器本地执行，您的配置数据绝不会被上传到服务器。</li>
+            <li><strong>自动识别</strong>：智能解析输入内容，自动区分 JSON、YAML 和 Properties 格式。</li>
+            <li><strong>代码格式化</strong>：转换结果经过美化，具有清晰的缩进和层级结构。</li>
+        </ul>
+
+        <h2>如何将 YAML 转换为 Properties？</h2>
+        <p>1. 将您的 YAML 代码粘贴到左侧输入框中。<br>
+           2. 点击下方“转换为 Properties”按钮。<br>
+           3. 复杂的嵌套结构将自动被处理为点号分隔（Dot notation）的键值对形式。</p>
+        
+        <h2>常见问题</h2>
+        <p><strong>Q: 转换器支持多大的文件？</strong><br>
+        A: 由于解析在客户端完成，它支持处理数兆大小的配置文件，速度取决于您的浏览器性能。</p>
+    </article>
+</main>
+
+<script>
+    // JS 逻辑保持不变（包含 parseInput, unflattenProperties, flattenObject 等）
+    const inputEl = document.getElementById('inputText');
+    const outputEl = document.getElementById('outputText');
+    const errorEl = document.getElementById('errorBox');
+
+    function parseInput(raw) {
+        raw = raw.trim();
+        if (!raw) return null;
+        if (raw.startsWith('{') || raw.startsWith('[')) {
+            try { return JSON.parse(raw); } catch (e) {}
+        }
+        if (raw.includes('=') && !raw.includes(': ')) {
+            return unflattenProperties(raw);
+        }
+        try {
+            return jsyaml.load(raw);
+        } catch (e) {
+            throw new Error("解析失败，请确保格式正确: " + e.message);
+        }
+    }
+
+    function unflattenProperties(str) {
+        const result = {};
+        const lines = str.split('\n');
+        lines.forEach(line => {
+            line = line.trim();
+            if (!line || line.startsWith('#') || !line.includes('=')) return;
+            const [key, ...valParts] = line.split('=');
+            const value = valParts.join('=').trim();
+            const keys = key.trim().split('.');
+            let current = result;
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                if (i === keys.length - 1) {
+                    current[k] = tryParseValue(value);
+                } else {
+                    current[k] = current[k] || {};
+                    current = current[k];
+                }
+            }
+        });
+        return result;
+    }
+
+    function flattenObject(ob, prefix = '') {
+        let toReturn = {};
+        for (let i in ob) {
+            if (!ob.hasOwnProperty(i)) continue;
+            if ((typeof ob[i]) === 'object' && ob[i] !== null && !Array.isArray(ob[i])) {
+                Object.assign(toReturn, flattenObject(ob[i], prefix + i + '.'));
+            } else {
+                toReturn[prefix + i] = ob[i];
+            }
+        }
+        return toReturn;
+    }
+
+    function tryParseValue(v) {
+        if (v === 'true') return true;
+        if (v === 'false') return false;
+        if (!isNaN(v) && v !== '') return Number(v);
+        return v;
+    }
+
+    function handleConvert(type) {
+        errorEl.style.display = 'none';
+        try {
+            const obj = parseInput(inputEl.value);
+            if (!obj) return;
+            if (type === 'toYaml') {
+                outputEl.value = jsyaml.dump(obj, { indent: 2, lineWidth: -1 });
+            } else if (type === 'toJson') {
+                outputEl.value = JSON.stringify(obj, null, 2);
+            } else if (type === 'toProp') {
+                const flat = flattenObject(obj);
+                outputEl.value = Object.keys(flat).map(k => `${k}=${flat[k]}`).join('\n');
+            }
+        } catch (e) {
+            errorEl.innerText = e.message;
+            errorEl.style.display = 'block';
+        }
+    }
+
+    function clearAll() {
+        inputEl.value = '';
+        outputEl.value = '';
+        errorEl.style.display = 'none';
+    }
+
+    function copyOutput() {
+        outputEl.select();
+        document.execCommand('copy');
+        alert('已复制到剪贴板');
+    }
+</script>
+
+</body>
+</html>
