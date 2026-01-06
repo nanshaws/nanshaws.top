@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 助手管理版</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .markdown-body pre { background: #1e293b; color: white; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+        .markdown-body p { margin-bottom: 0.5rem; }
+        .markdown-body code { background: #f1f5f9; color: #e11d48; padding: 2px 4px; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+<div id="app" v-cloak class="max-w-4xl mx-auto h-screen flex flex-col p-2 md:p-4">
+    <header class="bg-white border shadow-sm rounded-t-xl p-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold text-blue-600">AI 智能助理</h1>
+            <p class="text-[10px] text-slate-400 font-mono uppercase">{{ config.platform }} | {{ config.model_name }}</p>
+        </div>
+        <button @click="openModal" class="bg-slate-100 hover:bg-slate-200 border px-4 py-2 rounded-lg text-sm transition font-bold">⚙️ 设置</button>
+    </header>
+
+    <div v-if="showModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2">系统参数设置</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">API 平台</label>
+                    <select v-model="tempConfig.platform" class="w-full border rounded-lg p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="aliyun">阿里云 (DashScope)</option>
+                        <option value="openai">OpenAI (GPT-4 / 3.5)</option>
+                        <option value="google">Google Gemini</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">API KEY</label>
+                    <input v-model="tempConfig.api_key" type="password" placeholder="sk-..." class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">模型名称</label>
+                    <input v-model="tempConfig.model_name" placeholder="如: qwen-plus" class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">系统人设</label>
+                    <textarea v-model="tempConfig.system_prompt" rows="3" class="w-full border rounded-lg p-2 text-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button @click="showModal = false" class="text-slate-400 text-sm font-bold">取消</button>
+                <button @click="saveConfig" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg transition">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 bg-white border-x overflow-y-auto p-4 space-y-4 shadow-inner" ref="scrollBox">
+        <div v-if="messages.length <= 1" class="h-full flex flex-col items-center justify-center opacity-30 text-slate-400">
+            <span class="text-5xl mb-2">🤖</span>
+            <p>等待配置完成后的第一次提问</p>
+        </div>
+        <div v-for="(msg, index) in messages" :key="index">
+            <template v-if="msg.role !== 'system'">
+                <div :class="['flex w-full', msg.role === 'user' ? 'justify-end' : 'justify-start']">
+                    <div :class="['max-w-[90%] p-4 rounded-2xl shadow-sm', 
+                                 msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 border rounded-tl-none']">
+                        <div class="markdown-body text-sm leading-relaxed" v-html="renderMarkdown(msg.content)"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div v-if="loading" class="flex justify-start">
+            <div class="bg-slate-50 p-3 rounded-xl text-slate-400 text-xs animate-pulse">AI 正在思考...</div>
+        </div>
+    </main>
+
+    <footer class="bg-white border p-4 rounded-b-xl shadow-lg">
+        <div class="flex gap-2">
+            <textarea v-model="userInput" @keyup.enter.exact.prevent="sendChat" rows="2" class="flex-1 p-3 outline-none resize-none text-sm bg-slate-50 border rounded-xl focus:ring-2 focus:ring-blue-400" placeholder="在此输入您的问题 (Enter 发送)..."></textarea>
+            <button @click="sendChat" :disabled="loading || !userInput.trim()" class="bg-blue-600 text-white px-6 rounded-xl hover:bg-blue-700 disabled:bg-slate-300 transition-all font-bold">发送</button>
+        </div>
+    </footer>
+</div>
+
+<script>
+const { createApp, ref, onMounted, nextTick } = Vue;
+createApp({
+    setup() {
+        const messages = ref([]);
+        const userInput = ref("");
+        const loading = ref(false);
+        const scrollBox = ref(null);
+        const showModal = ref(false);
+        const config = ref({ platform: 'aliyun', model_name: '未加载' });
+        const tempConfig = ref({});
+
+        const loadConfig = async () => {
+            try {
+                const res = await fetch('config_handler.php?action=read&t=' + Date.now());
+                const data = await res.json();
+                config.value = data;
+                messages.value = [{ role: "system", content: config.value.system_prompt }];
+                messages.value.push({ role: "assistant", content: "👋 系统就绪！当前平台: **" + config.value.platform + "**" });
+            } catch (e) { showModal.value = true; }
+        };
+
+        const openModal = () => { tempConfig.value = JSON.parse(JSON.stringify(config.value)); showModal.value = true; };
+
+        const saveConfig = async () => {
+            await fetch('config_handler.php?action=save', { method: 'POST', body: JSON.stringify(tempConfig.value) });
+            config.value = tempConfig.value;
+            showModal.value = false;
+            loadConfig(); 
+        };
+
+        const renderMarkdown = (c) => marked.parse(c || "");
+        const scrollToBottom = async () => { await nextTick(); if(scrollBox.value) scrollBox.value.scrollTop = scrollBox.value.scrollHeight; };
+
+        const sendChat = async () => {
+            if (!userInput.value.trim() || loading.value) return;
+            messages.value.push({ role: "user", content: userInput.value });
+            userInput.value = ""; loading.value = true;
+            await scrollToBottom();
+            
+            try {
+                const response = await fetch('chat.php', { method: 'POST', body: JSON.stringify({ messages: messages.value }) });
+                const rawText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {
+                    throw new Error("接口返回了非 JSON 格式内容。可能是 API Key 错误导致跳转到了错误页面。");
+                }
+
+                // 核心解析逻辑：防止显示 [object Object]
+                if (data.choices && data.choices[0] && data.choices[0].message) {
+                    messages.value.push(data.choices[0].message);
+                } else if (data.error) {
+                    // 如果错误是一个对象，提取里面的 message
+                    const errorMsg = typeof data.error === 'object' ? (data.error.message || JSON.stringify(data.error)) : data.error;
+                    throw new Error(errorMsg);
+                } else {
+                    throw new Error("未知错误: " + rawText);
+                }
+            } catch (err) {
+                messages.value.push({ role: "assistant", content: "### ❌ 系统报错\n> " + err.message });
+            } finally {
+                loading.value = false;
+                await scrollToBottom();
+            }
+        };
+
+        onMounted(loadConfig);
+        return { messages, userInput, loading, sendChat, scrollBox, renderMarkdown, showModal, config, tempConfig, openModal, saveConfig };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
